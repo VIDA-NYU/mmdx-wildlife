@@ -29,6 +29,7 @@ class LTSManager:
         # self.labeldb = labeldb
         self.project_path = f"data/{self.project_id}"
         self.metrics_path = f"{self.project_path}/metrics.json"
+        self.final_model_res = f"{self.project_path}/final_model_metrics.json"
         self.stop_path = f"{self.project_path}/stop.txt"
         self.demo = demo
 
@@ -52,14 +53,17 @@ class LTSManager:
         print(f"processid: {process_id}")
 
         args, sampler, data, trainer, labeler = initialize_LTS(self.project_path, self.demo)
-
+        samplingVersion = args.get("samplingVersion")
+        print("samplingVersion", samplingVersion)
         budget = args.get("budget")
         budget_value = int(args.get("bugetValue"))
         # stop_on = args.get("stop")
         result_json = []
         if budget == "trainingSize":
             loops = int(budget_value/args.get("sample_size"))
+            print("trainingSize loops", loops)
             for idx in range(loops):
+                print("Loop idx", idx)
                 loop = idx+1
                 if os.path.exists(self.metrics_path):
                     result_json = self.get_metrics(self.project_path)
@@ -76,10 +80,10 @@ class LTSManager:
                 else:
                     label = args.get("labeling")
                 if not self.demo:
-                    res =  LTS(sampler, data, args.get("sample_size"), True, trainer, labeler, "filename", True, args.get("metric"), args.get("baseline"), label, loop, self.project_path, self.process_path)
+                    res =  LTS(sampler, data, args.get("sample_size"), True, trainer, labeler, "filename", True, args.get("metric"), args.get("baseline"), label, loop, self.project_path, self.process_path, samplingVersion)
                 else:
                     res = self.get_demo_res(loop, args, label)
-                if len(res) == 0:
+                if len(res) == 0: ## end of LLM Labeling
                     csvpath =f"data/{self.project_id}/current_sample_training.csv"
 
                     if os.path.exists(csvpath):
@@ -92,7 +96,7 @@ class LTSManager:
                             f.write("User Labeling")
                     return
 
-                if len(res) > 0:
+                if len(res) > 0: ## end of training loop
                     # Check if the keys in `res` contain "eval_"
                     is_eval_format = any(key.startswith("eval_") for key in res.keys())
 
@@ -129,8 +133,29 @@ class LTSManager:
                     if os.path.exists(self.stop_path):
                         print(f"Removing Stop file {self.stop_path}")
                         os.remove(self.stop_path)
+                    final_csv = f"{self.project_path}/filename_data_labeled.csv"
+                    if os.path.exists(final_csv):
+                        print("Starting final training with complete labeled data...")
+                        final_df = pd.read_csv(final_csv)
+                        # Use the same trainer and test_data as before
+                        results_eval, results_test, trainer = trainer.train_data(final_df, still_unbalanced=False, state_path=self.project_path)
+                        trainer.save_model(self.project_path, "final_model")
+                        print("Final training results:", results_eval, results_test)
+                        with open(self.final_model_res, "w") as json_file:
+                            json.dump(results_test, json_file, indent=4)
                     print("LTS Finished!")
                     return # End of LTS process
+            final_csv = f"{self.project_path}/filename_data_labeled.csv"
+            if os.path.exists(final_csv):
+                print("Starting final training with complete labeled data...")
+                final_df = pd.read_csv(final_csv)
+                # Use the same trainer and test_data as before
+                results_eval, results_test, trainer = trainer.train_data(final_df, still_unbalanced=False, state_path=self.project_path)
+                trainer.save_model(self.project_path, "final_model")
+                print("Final training results:", results_eval, results_test)
+                with open(self.final_model_res, "w") as json_file:
+                    json.dump(results_test, json_file, indent=4)
+            print("LTS Finished!")
     # TODO
         # elif budget=="metric":
 

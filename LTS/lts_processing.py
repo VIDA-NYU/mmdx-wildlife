@@ -6,7 +6,7 @@ from .utils import load_and_save_csv
 from .config import update_config
 from .state_manager import write_state
 
-def LTS(sampler, data, sample_size, filter_label, trainer, labeler, filename, balance, metric, baseline, labeling, loop, project_path, process_path):
+def LTS(sampler, data, sample_size, filter_label, trainer, labeler, filename, balance, metric, baseline, labeling, loop, project_path, process_path, samplingVersion):
     training_data, chosen_bandit = sampler.get_sample_data(data, sample_size, filter_label, trainer, labeling, filename, project_path)
     if training_data.empty:
         return None
@@ -20,14 +20,19 @@ def LTS(sampler, data, sample_size, filter_label, trainer, labeler, filename, ba
         training_data["answer"] = training_data["answer"].str.strip()
         training_data["label"] = np.where(training_data["answer"].str.contains("not a relevant product"), 0, 1)
         training_data["label"] = training_data["label"].astype(int)
+        training_data["label_llm"] = training_data["label"].astype(int)
         file_name = f"{project_path}/{filename}_data_labeled"
         # update to the complete labeled file
         load_and_save_csv(file_name, training_data)
         training_data = add_previous_data(training_data, project_path)  # ADD POSITIVE DATA IF AVAILABLE
         # save current sample for possible label update
-        training_data.to_csv(f"{project_path}/current_sample_training.csv", index=False)
-        return {}
+        if samplingVersion != "AUTO":
+            training_data.to_csv(f"{project_path}/current_sample_training.csv", index=False)
+            return {}
 
+    # if "ground_truth" in training_data.columns:
+    #     training_data["label"] = training_data["ground_truth"].astype(int)
+        # save current sample for possible label update
     training_data.to_csv(f"{project_path}/current_sample_training.csv", index=False)
     if sampler.__class__.__name__ == "ThompsonSampler":
         sampler.update(chosen_bandit, training_data)

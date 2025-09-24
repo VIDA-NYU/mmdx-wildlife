@@ -302,6 +302,8 @@ def create_database():
     # filepath = os.path.join(project_id, filename)
     if datatype == "test":
         filename = "test.csv"
+    elif datatype == "validation":
+        filename = "validation.csv"
 
 
     project_dir = os.path.join("data", project_id)

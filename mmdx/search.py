@@ -145,7 +145,15 @@ class VectorDB:
                 image_paths = [path for path in df["image_path"].to_list() if path not in previous]
 
             image_path_list_str = ', '.join(f"'{path}'" for path in image_paths)
-
+            if "ground_truth" in df.columns:
+                print("Ground truth found, adding labels directly to labeldb.")
+                for _, row in df.iterrows():
+                    image_path = row["image_path"]
+                    if image_path not in image_paths:
+                        continue
+                    else:
+                        label = "not animal origin" if row["ground_truth"] == 0 else "animal origin"
+                        self.add_label(image_path=image_path, label=label, table="relevant")
 
             df_hits = duckdb.sql(
                 f"""WITH filtered_data AS (
