@@ -2,6 +2,9 @@
 
 HILTS is a web-based platform for interactive labeling, searching, and managing wildlife datasets. It combines a Svelte/TypeScript frontend with a Python backend and supports scalable deployment via Docker and Kubernetes.
 
+The system is described in 
+"HILTS: Human-LLM Collaboration for Effective Data Labeling"
+To appear in Information Systems Journal, 2026.
 ---
 
 ## Environment Variables
